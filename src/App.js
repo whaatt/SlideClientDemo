@@ -21,6 +21,7 @@ class App extends Component {
   constructor() {
     super();
     this.StreamClient = null;
+    this.playTick = null;
     this.defaultState = {
       // Debug info.
       error: null,
@@ -218,6 +219,7 @@ class App extends Component {
       let trackData = thisObj.state.trackData;
       trackData[locator] = {
         name: track.playData.name,
+        URI: track.URI,
         score: track.score,
         ups: track.up,
         downs: track.down
@@ -438,9 +440,42 @@ class App extends Component {
 
   // Track play handler.
   playTrack(locator, list) {
+    let thisObj = this;
     return (event) => {
       event.preventDefault();
       event.target.blur();
+      let trackData = this.state.trackData[locator];
+
+      // Just in case...
+      if (trackData === undefined)
+        return thisObj.setState({
+          error: 'delay',
+          errorMsg: 'Delay Error'
+        });
+
+      return thisObj.removeTrack(locator, list)()
+        .then((data) => {
+          let offset = 0;
+          if (thisObj.playTick) clearInterval(thisObj.playTick);
+          return thisObj.playTick = setInterval(() => {
+            if (offset < 15) {
+              offset += 1;
+              return thisObj.StreamClient.playTrackAsync(trackData.URI,
+                { name: trackData.name }, offset, 'playing');
+            } else {
+              clearInterval(thisObj.playTick);
+              thisObj.playTick = null;
+              return thisObj.StreamClient.playTrackAsync(trackData.URI,
+                { name: trackData.name }, offset, 'paused');
+            }
+          }, 1000);
+        })
+        .then((data) => thisObj.setState({ error: null }))
+        .catch((error) =>
+          thisObj.setState({
+            error: 'Play',
+            errorMsg: 'Play Error'
+          }));
     };
   };
 
@@ -448,8 +483,11 @@ class App extends Component {
   removeTrack(locator, list) {
     let thisObj = this;
     return (event) => {
-      event.preventDefault();
-      event.target.blur();
+      if (event !== undefined) {
+        event.preventDefault();
+        event.target.blur();
+      }
+
       let snapshot = this.state[list].slice()
       let edited = this.state[list].slice()
       edited.splice(snapshot.indexOf(locator), 1);
@@ -666,6 +704,8 @@ class App extends Component {
     let playState = this.state.playState;
     let members = this.state.members;
     let timestamp = new Date(this.state.timestamp);
+
+    playState = playState[0].toUpperCase() + playState.slice(1);
     timestamp = timestamp.toUTCString().substr(4)
 
     let mins = ((seek - (seek % 60)) / 60).toString();
