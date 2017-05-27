@@ -1,0 +1,41 @@
+/*
+ * File: index.css
+ * Type: Stylesheet
+ * Master stylesheet.
+ */
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: sans-serif;
+  /* background-image: url(background.jpg) */
+}
+
+*:focus {
+  outline: none !important;
+}
+
+#maximize {
+  margin-left: 10px;
+  margin-top: 10px;
+}
+
+@media (max-width: 1650px) {
+  * {
+    display: none;
+  }
+
+  html, body, #maximize {
+    display: block !important;
+  }
+}
+
+@media (min-width: 1651px) {
+  #maximize {
+    display: none;
+  }
+}
+
+.btn.active.focus, .btn.active:focus, .btn.focus, .btn:active.focus, .btn:active:focus, .btn:focus {
+    outline: 0;
+}

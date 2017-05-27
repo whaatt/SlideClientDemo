@@ -1,0 +1,27 @@
+{
+  "name": "slide-client",
+  "version": "0.0.1",
+  "description": "Client API for Slide.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/whaatt/SlideClient.git"
+  },
+  "scripts": {
+    "docScript": "node_modules/.bin/jsdoc --configure JSDoc.json --verbose",
+    "documentation": "npm run docScript index.js --readme README.md"
+  },
+  "keywords": [
+    "music"
+  ],
+  "author": "Sanjay Kannan",
+  "license": "ISC",
+  "homepage": "https://github.com/whaatt/SlideClient",
+  "dependencies": {
+    "deepstream.io-client-js": "^2.1.5",
+    "es6-promisify-all": "^0.1.0"
+  },
+  "devDependencies": {
+    "jsdoc": "^3.4.3",
+    "minami": "^1.2.3"
+  }
+}

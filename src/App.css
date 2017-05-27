@@ -1,0 +1,59 @@
+/*
+ * File: App.css
+ * Type: Stylesheet
+ * Application stylesheet.
+ */
+
+.App {
+  text-align: center;
+  color: black;
+}
+
+th {
+  text-align: center;
+}
+
+a {
+  
+}
+
+#settingsInputs {
+  margin-top: 10px;
+}
+
+#username, #UUID, #streamOptions, #streamName {
+  margin-top: 10px;
+}
+
+#streamOptions {
+  margin-bottom: -7px;
+}
+
+#header {
+  margin-bottom: 20px;
+}
+
+#loginLogout, #createClient {
+  margin-bottom: 4px;
+}
+
+.addForm input, .addForm div, .addForm form {
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+}
+
+.addContainer {
+  padding: 0 !important;
+  border: none !important;
+}
+
+.list {
+  margin-top: 10px;
+}
+
+.disabledVote {
+  pointer-events: none;
+  color: #aaa;
+}

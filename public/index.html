@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/latest/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://bootswatch.com/journal/bootstrap.min.css">
+
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json">
+    <link rel="shortcut icon" href="%PUBLIC_URL%/favicon.ico">
+    <title>Slide Demo</title>
+
+    <!-- Override Bootstrap. -->
+    <script type="text/javascript">
+      document.addEventListener('click', function(e) {
+        if (document.activeElement.toString() == '[object HTMLButtonElement]')
+          document.activeElement.blur();
+      });
+    </script>
+  </head>
+  <body>
+    <h3 id="maximize">
+      Please maximize the page.
+    </h3>
+    <noscript>
+      You need to enable JavaScript to run this app.
+    </noscript>
+    <div id="root">
+    </div>
+  </body>
+</html>
