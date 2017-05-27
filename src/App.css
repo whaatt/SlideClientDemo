@@ -53,7 +53,7 @@ a {
   margin-top: 10px;
 }
 
-.disabledVote {
+.disabledAnchor {
   pointer-events: none;
   color: #aaa;
 }

@@ -391,6 +391,80 @@ class App extends Component {
     };
   };
 
+  // Track move up handler.
+  moveTrackUp(locator, list) {
+    let thisObj = this;
+    return (event) => {
+      event.preventDefault();
+      event.target.blur();
+      let snapshot = this.state[list].slice()
+      let edited = this.state[list].slice()
+      let lIndex = snapshot.indexOf(locator);
+
+      if (lIndex == 0) return thisObj.setState({ error: null });
+      [edited[lIndex], edited[lIndex - 1]] = [edited[lIndex - 1], edited[lIndex]];
+      return thisObj.StreamClient.editStreamListAsync(list, snapshot, edited)
+        .then((data) => thisObj.setState({ error: null }))
+        .catch((error) =>
+          thisObj.setState({
+            error: 'Edit',
+            errorMsg: 'Edit Error'
+          }));
+    };
+  };
+
+  // Track move handler.
+  moveTrack(locator, list, up) {
+    let thisObj = this;
+    return (event) => {
+      event.preventDefault();
+      event.target.blur();
+      let snapshot = this.state[list].slice()
+      let edited = this.state[list].slice()
+      let lIndex = snapshot.indexOf(locator);
+      let d = up ? -1 : 1;
+
+      // RPC edit call using the edit method.
+      [edited[lIndex], edited[lIndex + d]] = [edited[lIndex + d], edited[lIndex]];
+      return thisObj.StreamClient.editStreamListAsync(list, snapshot, edited)
+        .then((data) => thisObj.setState({ error: null }))
+        .catch((error) =>
+          thisObj.setState({
+            error: 'Edit',
+            errorMsg: 'Edit Error'
+          }));
+    };
+  };
+
+  // Track play handler.
+  playTrack(locator, list) {
+    return (event) => {
+      event.preventDefault();
+      event.target.blur();
+    };
+  };
+
+  // Track remove handler.
+  removeTrack(locator, list) {
+    let thisObj = this;
+    return (event) => {
+      event.preventDefault();
+      event.target.blur();
+      let snapshot = this.state[list].slice()
+      let edited = this.state[list].slice()
+      edited.splice(snapshot.indexOf(locator), 1);
+
+      // RPC delete call using the edit method.
+      return thisObj.StreamClient.editStreamListAsync(list, snapshot, edited)
+        .then((data) => thisObj.setState({ error: null }))
+        .catch((error) =>
+          thisObj.setState({
+            error: 'Delete',
+            errorMsg: 'Delete Error'
+          }));
+    };
+  };
+
   // RENDERERS
   // Render add box.
   addTrackFor(list) {
@@ -416,7 +490,7 @@ class App extends Component {
       <span>
         { symbol === '∧' && '\u00a0' }
         <a onClick={ this.vote(locator, list, up).bind(this) } href="#"
-          className={ disabled ? 'disabledVote' : '' }>
+          className={ disabled ? 'disabledAnchor' : '' }>
           { symbol }
         </a>
         { symbol === '∨' && '\u00a0' }
@@ -446,6 +520,17 @@ class App extends Component {
       index = idx.toString();
     }
 
+    let editDisabled = (list === 'locked' && !this.state.hosting) ||
+      (this.state.voting && !this.state.hosting)
+    let moveDisabled = editDisabled ||
+      (list === 'queue' && this.state.voting && this.state.autopilot) ||
+      (list === 'suggestion' && this.state.voting && !this.state.autopilot)
+    let moveUpDisabled = moveDisabled ||
+      this.state[list].indexOf(locator) == 0;
+    let moveDownDisabled = moveDisabled ||
+      (this.state[list].indexOf(locator) ==
+        this.state[list].length - 1);
+
     // This code is a piece of absolute
     // shit. Do not reuse if you love
     // puppies of any kind.
@@ -470,7 +555,16 @@ class App extends Component {
                 ? this.voteFor(locator, list, false, true, '∧')
                 : this.voteFor(locator, list, true, true, '∧'))) }
         </td>
-        <td>&and; &or; &sim; &empty;</td>
+        <td>
+          <a onClick={ this.moveTrack(locator, list, true).bind(this) } href="#"
+            className={ moveUpDisabled ? 'disabledAnchor' : '' }>&and;</a>&nbsp;
+          <a onClick={ this.moveTrack(locator, list, false).bind(this) } href="#"
+            className={ moveDownDisabled ? 'disabledAnchor' : '' }>&or;</a>&nbsp;
+          <a onClick={ this.playTrack(locator, list).bind(this) } href="#"
+            className={ editDisabled ? 'disabledAnchor' : '' }>&sim;</a>&nbsp;
+          <a onClick={ this.removeTrack(locator, list).bind(this) } href="#"
+            className={ editDisabled ? 'disabledAnchor' : '' }>&empty;</a>
+        </td>
       </tr>
     );
   };
