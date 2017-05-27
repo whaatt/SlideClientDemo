@@ -477,6 +477,17 @@ class App extends Component {
 
   // Render each list.
   tableFor(list) {
+    let thisObj = this;
+    let addOrderList = this.state[list];
+    let scoreOrderList = this.state[list].slice();
+    scoreOrderList.sort((a, b) => {
+      let aTrackData = thisObj.state.trackData[a];
+      let bTrackData = thisObj.state.trackData[b];
+      let aScore = aTrackData !== undefined ? aTrackData.score : 0;
+      let bScore = bTrackData !== undefined ? bTrackData.score : 0;
+      return bScore - aScore;
+    });
+
     return (
       <RB.Table id={list} className="list" bordered hover>
         <thead>
@@ -488,8 +499,10 @@ class App extends Component {
           </tr>
         </thead>
         <tbody>
-          { this.state[list].map((locator, idx) =>
-              this.trackFor(locator, idx, list)) }
+          { !(list === 'queue' && this.state.voting && this.state.autopilot) &&
+            !(list === 'suggestion' && this.state.voting && !this.state.autopilot)
+              ? addOrderList.map((locator, idx) => this.trackFor(locator, idx, list))
+              : scoreOrderList.map((locator, idx) => this.trackFor(locator, idx, list)) }
           <tr> 
             <td colSpan={4} className="addContainer">
               { this.addTrackFor(list) }
