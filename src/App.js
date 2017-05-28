@@ -299,21 +299,18 @@ class App extends Component {
       this.setState({ loggingIn: true },
         (data) =>
           thisObj.StreamClient.loginAsync(username, UUID)
-            .then((data) => {
+            .then((data) =>
               thisObj.setState({
                 error: null,
                 loggingIn: false,
                 loggedIn: true
-              });
-            })
-            .catch((error) => {
+              }))
+            .catch((error) =>
               thisObj.setState({
                 error: 'Login',
                 errorMsg: 'Login Error',
                 loggingIn: false
-              });
-            })
-      );
+              })));
     }
   };
 
