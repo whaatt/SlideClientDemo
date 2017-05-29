@@ -40,7 +40,8 @@ const VOTE_ON_TRACK = 'vote-on-track';
 const PLAY_TRACK = 'play-track';
 
 // Various intervals.
-const LOGIN_TIMEOUT = 1000;
+const LOGIN_TIMEOUT = 3000;
+const LOGIN_CHECK_INTERVAL = 500;
 const KEEP_ALIVE_INTERVAL = 15000;
 const INACTIVITY_THRESHOLD = 60000;
 
@@ -411,6 +412,7 @@ SlideClient.prototype.login = function(username, UUID, callback) {
     return;
   }
 
+  // TODO: Reassess this flow.
   // Called if login successful.
   const loggedIn = (data) => {
     clearTimeout(timeoutTimer);
@@ -419,17 +421,22 @@ SlideClient.prototype.login = function(username, UUID, callback) {
     callback(null, null);
   };
 
-  // Called if login times out.
+  let totalWaited = 0
+  // Called to check login timeout.
   const loginTimeout = () => {
-    clearTimeout(timeoutTimer);
+    totalWaited += LOGIN_CHECK_INTERVAL
     // Double-check that we did not authenticate. Sometimes
     // the login event fires before we are able to really
     // create the login handler and login timeout callbacks.
     const state = clientObject.client.getConnectionState()
     if (state === Deepstream.CONSTANTS.CONNECTION_STATE.OPEN) {
       clientObject.authenticated = true;
+      clearInterval(timeoutTimer);
       callback(null, null);
-    } else callback(Errors.login, null);
+    } else if (totalWaited >= LOGIN_TIMEOUT) {
+      clearInterval(timeoutTimer);
+      callback(Errors.login, null);
+    }
   };
 
   // Instantiate the quarantined connection to Deepstream.
@@ -439,7 +446,7 @@ SlideClient.prototype.login = function(username, UUID, callback) {
   // Authenticate this connection.
   clientObject.username = username;
   clientObject.client.event.subscribe(LOGIN_PREFIX + username, loggedIn);
-  timeoutTimer = setTimeout(loginTimeout, LOGIN_TIMEOUT);
+  timeoutTimer = setInterval(loginTimeout, LOGIN_CHECK_INTERVAL);
   clientObject.client.login({ username: username, UUID: UUID });
 };
 
