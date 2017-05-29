@@ -576,7 +576,7 @@ class App extends Component {
     return (
       <tr>
         <td>{ index }</td>
-        <td>{ trackName }</td>
+        <td className="trackName">{ trackName }</td>
         <td>
           { !doVote
             ? this.voteFor(locator, list, true, false, '∨')
@@ -626,7 +626,7 @@ class App extends Component {
         <thead>
           <tr>
             <th>#</th>
-            <th>Track Name</th>
+            <th className="trackName">Track Name</th>
             <th>Score</th>
             <th>Move</th>
           </tr>
@@ -774,33 +774,25 @@ class App extends Component {
               <RB.Label bsStyle={this.state.lockedActive ? 'success' : 'primary'}>
                 Locked Queue List
               </RB.Label>
-              <div className="tableWrap">
-                { this.tableFor('locked') }
-              </div>
+              { this.tableFor('locked') }
             </RB.Col>
             <RB.Col md={2}>
               <RB.Label bsStyle={this.state.queueActive ? 'success' : 'primary'}>
                 Queue List
               </RB.Label>
-              <div className="tableWrap">
-                { this.tableFor('queue') }
-              </div>
+              { this.tableFor('queue') }
             </RB.Col>
             <RB.Col md={2}>
               <RB.Label bsStyle={this.state.suggestionActive ? 'success' : 'primary'}>
                 Suggestion List
               </RB.Label>
-              <div className="tableWrap">
-                { this.tableFor('suggestion') }
-              </div>
+              { this.tableFor('suggestion') }
             </RB.Col>
             <RB.Col md={2}>
               <RB.Label bsStyle={this.state.autoplayActive ? 'success' : 'primary'}>
                 Autoplay List
               </RB.Label>
-              <div className="tableWrap">
-                { this.tableFor('autoplay') }
-              </div>
+              { this.tableFor('autoplay') }
             </RB.Col>
             <RB.Col md={4}>
               <RB.Row>

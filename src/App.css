@@ -13,10 +13,6 @@ th {
   text-align: center;
 }
 
-a {
-  
-}
-
 #settingsInputs {
   margin-top: 10px;
 }
@@ -37,6 +33,14 @@ a {
   margin-bottom: 4px;
 }
 
+.trackName {
+  width: 50%;
+  max-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
 .addForm input, .addForm div, .addForm form {
   border-radius: 0 !important;
   border: none !important;
@@ -51,10 +55,6 @@ a {
 
 .list {
   margin-top: 10px;
-}
-
-.tableWrap {
-  display: table;
 }
 
 .disabledAnchor {
