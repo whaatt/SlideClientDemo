@@ -40,7 +40,7 @@ const VOTE_ON_TRACK = 'vote-on-track';
 const PLAY_TRACK = 'play-track';
 
 // Various intervals.
-const LOGIN_TIMEOUT = 3000;
+const LOGIN_TIMEOUT = 1000;
 const KEEP_ALIVE_INTERVAL = 15000;
 const INACTIVITY_THRESHOLD = 60000;
 

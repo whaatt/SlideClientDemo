@@ -26,7 +26,7 @@ class App extends Component {
       // Debug info.
       error: null,
       // Input fields.
-      server: 'localhost:6020',
+      server: 'wss://slide.ga',
       username: '',
       UUID: '',
       stream: '',
@@ -504,6 +504,8 @@ class App extends Component {
   // Render add box.
   addTrackFor(list) {
     let active = this.state[list + 'Active'];
+    let autopilot = this.state.autopilot;
+    let voting = this.state.voting;
     let joined = this.state.joined;
 
     return (
@@ -511,7 +513,9 @@ class App extends Component {
         onSubmit={ this.submitTrackFor(list).bind(this) }>
         <RB.FormGroup>
           <RB.FormControl type="text" placeholder="Enter track name to add."
-            disabled={ !active || (list === 'locked' && joined) }
+            disabled={ !active || (list === 'locked' && joined) ||
+              (list === 'queue' && joined && (voting && !autopilot)) ||
+              (list === 'autoplay' && joined && voting) }
             value={ this.state[list + 'Add'] }
             onChange={ this.setListAdd(list).bind(this) } />
         </RB.FormGroup>
@@ -770,25 +774,33 @@ class App extends Component {
               <RB.Label bsStyle={this.state.lockedActive ? 'success' : 'primary'}>
                 Locked Queue List
               </RB.Label>
-              { this.tableFor('locked') }
+              <div className="tableWrap">
+                { this.tableFor('locked') }
+              </div>
             </RB.Col>
             <RB.Col md={2}>
               <RB.Label bsStyle={this.state.queueActive ? 'success' : 'primary'}>
                 Queue List
               </RB.Label>
-              { this.tableFor('queue') }
+              <div className="tableWrap">
+                { this.tableFor('queue') }
+              </div>
             </RB.Col>
             <RB.Col md={2}>
               <RB.Label bsStyle={this.state.suggestionActive ? 'success' : 'primary'}>
                 Suggestion List
               </RB.Label>
-              { this.tableFor('suggestion') }
+              <div className="tableWrap">
+                { this.tableFor('suggestion') }
+              </div>
             </RB.Col>
             <RB.Col md={2}>
               <RB.Label bsStyle={this.state.autoplayActive ? 'success' : 'primary'}>
                 Autoplay List
               </RB.Label>
-              { this.tableFor('autoplay') }
+              <div className="tableWrap">
+                { this.tableFor('autoplay') }
+              </div>
             </RB.Col>
             <RB.Col md={4}>
               <RB.Row>
