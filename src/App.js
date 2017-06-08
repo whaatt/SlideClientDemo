@@ -463,13 +463,15 @@ class App extends Component {
                    || thisObj.state.source === thisObj.state.username)) {
               offset += 1;
               return thisObj.StreamClient.playTrackAsync(
-                { name: trackData.name }, offset, 'playing');
+                { name: trackData.name }, offset, 'playing')
+                .catch((error) => true);
             } else {
               clearInterval(thisObj.playTick);
               thisObj.playTick = null;
               if (thisObj.state.source === thisObj.state.username)
                 return thisObj.StreamClient.playTrackAsync(
-                  { name: trackData.name }, offset, 'paused');
+                  { name: trackData.name }, offset, 'paused')
+                  .catch((error) => true);
               else return;
             }
           }, 1000);

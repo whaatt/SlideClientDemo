@@ -176,209 +176,203 @@ function SlideClient(serverURI, disconnectCB, usePostMessage) {
   clientObject.autoplayCB = null;
   clientObject.suggestionCB = null;
   clientObject.trackCBS = {};
-};
 
-/**
- * Sets view callbacks on stream data.
- *
- * @param {Object} dataCallbacks - A map from properties to callbacks.
- * @param {Function} dataCallbacks.streamData - A callback for new stream data.
- * @param {Function} dataCallbacks.locked - A callback for locked list data.
- * @param {Function} dataCallbacks.queue - A callback for queue list data.
- * @param {Function} dataCallbacks.autoplay - A callback for autoplay list data.
- * @param {Function} dataCallbacks.suggestion - A callback for suggestion list data.
- * @param {requestCallback} callback - Node-style callback for result.
- */
-SlideClient.prototype.setStreamCallbacks = function(dataCallbacks, callback) {
-  // In this and all subsequent functions, we use this as a fallback.
-  if (callback === undefined) callback = (error, data) => null;
-  let clientObject = this;
+  // Internal function to set stream callbacks. Clients use stream and join.
+  clientObject.setStreamCallbacks = function(dataCallbacks, callback) {
+    // In this and all subsequent functions, we use this as a fallback.
+    if (callback === undefined) callback = (error, data) => null;
+    let clientObject = this;
 
-  // Convert string identifier to WebKit postMessage function.
-  if (callback !== undefined && clientObject.usePostMessage === true)
-    callback = clientObject.makePostMessageCB(callback);
+    // Convert string identifier to WebKit postMessage function.
+    if (callback !== undefined && clientObject.usePostMessage === true)
+      callback = clientObject.makePostMessageCB(callback);
 
-  // Auto-determine the currently playing stream.
-  let stream = clientObject.hostingStream ? clientObject.username
-                                          : clientObject.joinedStream;
+    // Auto-determine the currently playing stream.
+    let stream = clientObject.hostingStream ? clientObject.username
+                                            : clientObject.joinedStream;
 
-  // No running stream.
-  if (stream === null) {
-    callback(Errors.dead, null);
-    return;
-  }
-
-  // Locator names for convenience.
-  const streamLocator = STREAM_PREFIX + stream;
-  const lockedLocator = LOCKED_PREFIX + stream;
-  const queueLocator = QUEUE_PREFIX + stream;
-  const autoplayLocator = AUTOPLAY_PREFIX + stream;
-  const suggestionLocator = SUGGESTION_PREFIX + stream;
-
-  // The stream record is necessary to fetch the other records.
-  const streamRecord = clientObject.client.record.getRecord(streamLocator);
-
-  // Wait for record to be ready.
-  streamRecord.whenReady((sRecord) => {
-    // Get rid of stream data callback.
-    if (clientObject.streamDataCB !== null) {
-      sRecord.unsubscribe(clientObject.streamDataCB);
-      clientObject.streamDataCB = null;
-      sRecord.discard();
+    // No running stream.
+    if (stream === null) {
+      callback(Errors.dead, null);
+      return;
     }
 
-    // Install the new one if we can.
-    if (dataCallbacks.streamData) {
-      // Convert string identifier to
-      // WebKit postMessage function.
-      if (clientObject.usePostMessage === true)
-        dataCallbacks.streamData = clientObject.makePostMessageDataCB(
-          dataCallbacks.streamData);
+    // Locator names for convenience.
+    const streamLocator = STREAM_PREFIX + stream;
+    const lockedLocator = LOCKED_PREFIX + stream;
+    const queueLocator = QUEUE_PREFIX + stream;
+    const autoplayLocator = AUTOPLAY_PREFIX + stream;
+    const suggestionLocator = SUGGESTION_PREFIX + stream;
 
-      clientObject.streamDataCB = (data) => {
-        // Unfortunately read permissions in Deepstream are not dynamic.
-        if (data.users.indexOf(clientObject.username + ',') === -1) {
-          if (clientObject.enteredStream === true) {
-            // Leave the stream and implicitly fire the dead CB.
-            clientObject.leave(true, (error, data) => true);
-            return;
-          }
-        } else {
-          // We use this boolean to make sure the
-          // dead CB is not fired before the user
-          // was actually added to the stream.
-          clientObject.enteredStream = true;
-        }
+    // The stream record is necessary to fetch the other records.
+    const streamRecord = clientObject.client.record.getRecord(streamLocator);
 
-        // TODO: Anything more to add?
-        dataCallbacks.streamData(data);
-      };
-
-      // Re-add the callback and trigger it.
-      sRecord.subscribe(clientObject.streamDataCB, true);
-    }
-
-    // Queue, locked, and autoplay are only
-    // visible if the stream is not limited.
-    if (sRecord.get('limited') === false) {
-      // Do the same process for each of the subsidiary lists.
-      const lockedRecord = clientObject.client.record.getList(lockedLocator);
-      lockedRecord.whenReady((lRecord) => {
-        // Get rid of locked callback.
-        if (clientObject.lockedCB !== null) {
-          lRecord.unsubscribe(clientObject.lockedCB);
-          clientObject.lockedCB = null;
-          lRecord.discard();
-        }
-
-        // Install the new one if we can.
-        if (dataCallbacks.locked) {
-          // Convert string identifier to
-          // WebKit postMessage function.
-          if (clientObject.usePostMessage === true)
-            dataCallbacks.locked = clientObject.makePostMessageDataCB(
-              dataCallbacks.locked);
-
-          clientObject.lockedCB = (data) => {
-            // TODO: More stuff goes here.
-            dataCallbacks.locked(data);
-          };
-
-          // Re-add the callback and trigger it.
-          lRecord.subscribe(clientObject.lockedCB, true);
-        }
-      });
-
-      // Do the same process for each of the subsidiary lists.
-      const queueRecord = clientObject.client.record.getList(queueLocator);
-      queueRecord.whenReady((qRecord) => {
-        // Get rid of queue callback.
-        if (clientObject.queueCB !== null) {
-          qRecord.unsubscribe(clientObject.queueCB);
-          clientObject.queueCB = null;
-          qRecord.discard();
-        }
-
-        // Install the new one if we can.
-        if (dataCallbacks.queue) {
-          // Convert string identifier to
-          // WebKit postMessage function.
-          if (clientObject.usePostMessage === true)
-            dataCallbacks.queue = clientObject.makePostMessageDataCB(
-              dataCallbacks.queue);
-
-          clientObject.queueCB = (data) => {
-            // TODO: More stuff goes here.
-            dataCallbacks.queue(data);
-          };
-
-          // Re-add the callback and trigger it.
-          qRecord.subscribe(clientObject.queueCB, true);
-        }
-      });
-
-      // Do the same process for each of the subsidiary lists.
-      const autoplayRecord = clientObject.client.record
-        .getList(autoplayLocator);
-      autoplayRecord.whenReady((aRecord) => {
-        // Get rid of autoplay callback.
-        if (clientObject.autoplayCB !== null) {
-          aRecord.unsubscribe(clientObject.autoplayCB);
-          clientObject.autoplayCB = null;
-          aRecord.discard();
-        }
-
-        // Install the new one if we can.
-        if (dataCallbacks.autoplay) {
-          // Convert string identifier to
-          // WebKit postMessage function.
-          if (clientObject.usePostMessage === true)
-            dataCallbacks.autoplay = clientObject
-              .makePostMessageDataCB(dataCallbacks.autoplay);
-
-          clientObject.autoplayCB = (data) => {
-            // TODO: More stuff goes here.
-            dataCallbacks.autoplay(data);
-          };
-
-          // Re-add the callback and trigger it.
-          aRecord.subscribe(this.autoplayCB, true);
-        }
-      });
-    }
-
-    // Do the same process for each of the subsidiary lists.
-    const suggestionRecord = clientObject.client.record
-      .getList(suggestionLocator);
-    suggestionRecord.whenReady((gRecord) => {
-      // Get rid of suggestion callback.
-      if (clientObject.suggestionCB !== null) {
-        gRecord.unsubscribe(clientObject.suggestionCB);
-        clientObject.suggestionCB = null;
-        gRecord.discard();
+    // Wait for record to be ready.
+    streamRecord.whenReady((sRecord) => {
+      // Get rid of stream data callback.
+      if (clientObject.streamDataCB !== null) {
+        sRecord.unsubscribe(clientObject.streamDataCB);
+        clientObject.streamDataCB = null;
+        sRecord.discard();
       }
 
       // Install the new one if we can.
-      if (dataCallbacks.suggestion) {
+      // THIS SHOULD BE SET IF WE ARE
+      // JOINING OR HOSTING A STREAM.
+      if (dataCallbacks.streamData) {
         // Convert string identifier to
         // WebKit postMessage function.
         if (clientObject.usePostMessage === true)
-          dataCallbacks.suggestion = clientObject
-            .makePostMessageDataCB(dataCallbacks.suggestion);
+          dataCallbacks.streamData = clientObject.makePostMessageDataCB(
+            dataCallbacks.streamData);
 
-        clientObject.suggestionCB = (data) => {
-          // TODO: More stuff goes here.
-          dataCallbacks.suggestion(data);
+        // Wrap client callback with our own stuff.
+        // This is why we have the angry note above.
+        clientObject.streamDataCB = (data) => {
+          // Unfortunately read permissions in Deepstream are not dynamic.
+          if (data.users.indexOf(clientObject.username) === -1) {
+            if (clientObject.enteredStream === true) {
+              // Leave the stream and implicitly fire the dead CB.
+              clientObject.leave(true, (error, data) => true);
+              return;
+            }
+          } else {
+            // We use this boolean to make sure the
+            // dead CB is not fired before the user
+            // was actually added to the stream.
+            clientObject.enteredStream = true;
+          }
+
+          // TODO: Anything more to add?
+          dataCallbacks.streamData(data);
         };
 
         // Re-add the callback and trigger it.
-        gRecord.subscribe(clientObject.suggestionCB, true);
+        sRecord.subscribe(clientObject.streamDataCB, true);
       }
-    });
 
-    // TODO: Failures?
-    callback(null, null);
-  });
+      // Queue, locked, and autoplay are only
+      // visible if the stream is not limited.
+      if (sRecord.get('limited') === false) {
+        // Do the same process for each of the subsidiary lists.
+        const lockedRecord = clientObject.client.record.getList(lockedLocator);
+        lockedRecord.whenReady((lRecord) => {
+          // Get rid of locked callback.
+          if (clientObject.lockedCB !== null) {
+            lRecord.unsubscribe(clientObject.lockedCB);
+            clientObject.lockedCB = null;
+            lRecord.discard();
+          }
+
+          // Install the new one if we can.
+          if (dataCallbacks.locked) {
+            // Convert string identifier to
+            // WebKit postMessage function.
+            if (clientObject.usePostMessage === true)
+              dataCallbacks.locked = clientObject.makePostMessageDataCB(
+                dataCallbacks.locked);
+
+            clientObject.lockedCB = (data) => {
+              // TODO: More stuff goes here.
+              dataCallbacks.locked(data);
+            };
+
+            // Re-add the callback and trigger it.
+            lRecord.subscribe(clientObject.lockedCB, true);
+          }
+        });
+
+        // Do the same process for each of the subsidiary lists.
+        const queueRecord = clientObject.client.record.getList(queueLocator);
+        queueRecord.whenReady((qRecord) => {
+          // Get rid of queue callback.
+          if (clientObject.queueCB !== null) {
+            qRecord.unsubscribe(clientObject.queueCB);
+            clientObject.queueCB = null;
+            qRecord.discard();
+          }
+
+          // Install the new one if we can.
+          if (dataCallbacks.queue) {
+            // Convert string identifier to
+            // WebKit postMessage function.
+            if (clientObject.usePostMessage === true)
+              dataCallbacks.queue = clientObject.makePostMessageDataCB(
+                dataCallbacks.queue);
+
+            clientObject.queueCB = (data) => {
+              // TODO: More stuff goes here.
+              dataCallbacks.queue(data);
+            };
+
+            // Re-add the callback and trigger it.
+            qRecord.subscribe(clientObject.queueCB, true);
+          }
+        });
+
+        // Do the same process for each of the subsidiary lists.
+        const autoplayRecord = clientObject.client.record
+          .getList(autoplayLocator);
+        autoplayRecord.whenReady((aRecord) => {
+          // Get rid of autoplay callback.
+          if (clientObject.autoplayCB !== null) {
+            aRecord.unsubscribe(clientObject.autoplayCB);
+            clientObject.autoplayCB = null;
+            aRecord.discard();
+          }
+
+          // Install the new one if we can.
+          if (dataCallbacks.autoplay) {
+            // Convert string identifier to
+            // WebKit postMessage function.
+            if (clientObject.usePostMessage === true)
+              dataCallbacks.autoplay = clientObject
+                .makePostMessageDataCB(dataCallbacks.autoplay);
+
+            clientObject.autoplayCB = (data) => {
+              // TODO: More stuff goes here.
+              dataCallbacks.autoplay(data);
+            };
+
+            // Re-add the callback and trigger it.
+            aRecord.subscribe(this.autoplayCB, true);
+          }
+        });
+      }
+
+      // Do the same process for each of the subsidiary lists.
+      const suggestionRecord = clientObject.client.record
+        .getList(suggestionLocator);
+      suggestionRecord.whenReady((gRecord) => {
+        // Get rid of suggestion callback.
+        if (clientObject.suggestionCB !== null) {
+          gRecord.unsubscribe(clientObject.suggestionCB);
+          clientObject.suggestionCB = null;
+          gRecord.discard();
+        }
+
+        // Install the new one if we can.
+        if (dataCallbacks.suggestion) {
+          // Convert string identifier to
+          // WebKit postMessage function.
+          if (clientObject.usePostMessage === true)
+            dataCallbacks.suggestion = clientObject
+              .makePostMessageDataCB(dataCallbacks.suggestion);
+
+          clientObject.suggestionCB = (data) => {
+            // TODO: More stuff goes here.
+            dataCallbacks.suggestion(data);
+          };
+
+          // Re-add the callback and trigger it.
+          gRecord.subscribe(clientObject.suggestionCB, true);
+        }
+      });
+
+      // TODO: Failures?
+      callback(null, null);
+    });
+  };
 };
 
 /**
@@ -602,7 +596,7 @@ SlideClient.prototype.stream = function(settings, dataCallbacks, callback) {
       (error, data) => {
       if (error) callback(Errors.server, null);
       else {
-        // Start stream keep-alive ping.
+        // Start stream keep-alive ping if this is initial stream call.
         if (!clientObject.hostingStream && settings.live === true) {
           clientObject.hostingStream = true;
           clientObject.streamPing = setInterval(() =>
@@ -610,6 +604,14 @@ SlideClient.prototype.stream = function(settings, dataCallbacks, callback) {
               (error, data) => true /* TODO: What goes here? */),
           KEEP_ALIVE_INTERVAL);
         }
+
+        // A pretty hacky workaround to make sure our
+        // internal stream CB is correctly registered.
+        if (dataCallbacks.streamData === undefined &&
+            settings.live === true) // Not destroying.
+          if (clientObject.usePostMessage)
+            dataCallbacks.streamData = 'INTERNAL';
+          else dataCallbacks.streamData = () => true;
 
         // Instantiate the new callbacks passed to stream.
         clientObject.setStreamCallbacks(dataCallbacks, (error, data) => {
@@ -692,6 +694,13 @@ SlideClient.prototype.join = function(stream, dataCallbacks, streamDeadCB,
               clientObject.leave(true, (error, data) => true);
           });
         }, KEEP_ALIVE_INTERVAL);
+
+        // A pretty hacky workaround to make sure our
+        // internal stream CB is correctly registered.
+        if (dataCallbacks.streamData === undefined)
+          if (clientObject.usePostMessage)
+            dataCallbacks.streamData = 'INTERNAL';
+          else dataCallbacks.streamData = () => true;
 
         // Register any callbacks passed to join using setStreamCallbacks().
         clientObject.setStreamCallbacks(dataCallbacks, (error, data) => {
