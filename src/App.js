@@ -169,7 +169,7 @@ class App extends Component {
     let joining = this.state.joining;
 
     this.setState({
-      members: data.users.slice(0, -1).split(','),
+      members: data.users,
       timestamp: data.timestamp,
       privateMode: data.private,
       voting: data.voting,
