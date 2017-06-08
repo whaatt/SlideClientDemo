@@ -45,7 +45,8 @@ class App extends Component {
       autopilot: false,
       limited: false,
       // Track state.
-      trackName: 'None',
+      playing: 'None',
+      source: 'None',
       seek: 0, // Epoch.
       playState: 'Paused',
       // List states.
@@ -175,8 +176,10 @@ class App extends Component {
       autopilot: data.autopilot,
       limited: data.limited,
       // Track state updates.
-      trackName: data.playData !== null
-        ? data.playData.name : 'None',
+      source: data.source !== null
+        ? data.source : 'None',
+      playing: data.playing !== null
+        ? data.playing.name : 'None',
       seek: data.seek !== null ? data.seek : 0,
       playState: data.state !== null
         ? data.state : 'Unknown',
@@ -218,12 +221,11 @@ class App extends Component {
       // TODO: Validate rogue clients...
       let trackData = thisObj.state.trackData;
       trackData[locator] = {
-        name: track.playData.name,
-        URI: track.URI,
+        name: track.trackData.name,
         score: track.score,
         ups: track.up,
         downs: track.down
-      }
+      };
 
       thisObj.setState({ trackData: trackData });
     };
@@ -355,10 +357,9 @@ class App extends Component {
     let thisObj = this;
     return (event) => {
       event.preventDefault();
-      thisObj.StreamClient.createTrackAsync(
-        new Array(37).join('0'), // Dummy URI.
-        { name: thisObj.state[list + 'Add'] }
-      ).then((locator) => {
+      thisObj.StreamClient.createTrackAsync({
+        name: thisObj.state[list + 'Add']
+      }).then((locator) => {
         return thisObj.StreamClient.setTrackCallbacksAsync(
           { [locator]: thisObj.setTrackData(locator).bind(thisObj) }, []
         ).then(() => locator);
@@ -450,20 +451,26 @@ class App extends Component {
           errorMsg: 'Delay Error'
         });
 
+      // Manage a play track demo for 15 seconds.
       return thisObj.removeTrack(locator, list)()
         .then((data) => {
           let offset = 0;
           if (thisObj.playTick) clearInterval(thisObj.playTick);
           return thisObj.playTick = setInterval(() => {
-            if (offset < 15) {
+            if (offset < 15 && // Verify that you may still play.
+                 (!thisObj.state.voting || thisObj.state.hosting) &&
+                 (offset == 0 // Verify that you are still playing.
+                   || thisObj.state.source === thisObj.state.username)) {
               offset += 1;
-              return thisObj.StreamClient.playTrackAsync(trackData.URI,
+              return thisObj.StreamClient.playTrackAsync(
                 { name: trackData.name }, offset, 'playing');
             } else {
               clearInterval(thisObj.playTick);
               thisObj.playTick = null;
-              return thisObj.StreamClient.playTrackAsync(trackData.URI,
-                { name: trackData.name }, offset, 'paused');
+              if (thisObj.state.source === thisObj.state.username)
+                return thisObj.StreamClient.playTrackAsync(
+                  { name: trackData.name }, offset, 'paused');
+              else return;
             }
           }, 1000);
         })
@@ -700,8 +707,9 @@ class App extends Component {
 
   // Render stream state.
   stateIndicators() {
-    let trackName = this.state.trackName;
+    let trackName = this.state.playing;
     let seek = this.state.seek;
+    let source = this.state.source;
     let playState = this.state.playState;
     let members = this.state.members;
     let timestamp = new Date(this.state.timestamp);
@@ -721,7 +729,8 @@ class App extends Component {
         <h3>Current Track:</h3>
         <span id="currentTrack">{ trackName }</span>&nbsp;
         <span id="seek">({ mins }:{ secs })</span><br />
-        [<span id="playState">{ playState }</span>]
+        [<span id="playState">{ playState }</span>]<br />
+        [<span id="source">{ source }</span>]
         <h3>Who's Here:</h3>
         <span id="members">{ memStr }</span>.
         <h3>Timestamp:</h3>

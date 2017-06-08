@@ -90,15 +90,31 @@ function SlideClient(serverURI, disconnectCB, usePostMessage) {
   clientObject.enteredStream = false;
   clientObject.streamPing = null;
   clientObject.streamDeadCB = null;
-  clientObject.disconnectCB = disconnectCB;
   clientObject.usePostMessage = usePostMessage || false;
   clientObject.username = null;
 
   // Makes a postMessage-style callback for use in iOS.
   clientObject.makePostMessageCB = function(methodName) {
-    return (error, result) => window.webkit.messageHandlers[methodName]
-      .postMessage({ error: error, result: result });
+    return (error, data) => window.webkit.messageHandlers[methodName]
+      .postMessage({ error: error === null ? null : error.message, data: data });
   };
+
+  // Makes a postMessage-style data callback for use in iOS.
+  clientObject.makePostMessageDataCB = function(methodName) {
+    return (data) => window.webkit.messageHandlers[methodName]
+      .postMessage({ error: null, data: data });
+  };
+
+  // Makes a postMessage-style track data callback for use in iOS [client].
+  clientObject.makePostMessageTrackDataCB = function(methodName, locator) {
+    return (data) => window.webkit.messageHandlers[methodName]
+      .postMessage({ error: null, locator: locator, data: data });
+  };
+
+  // Convert string identifier to WebKit postMessage function.
+  if (disconnectCB !== undefined && clientObject.usePostMessage === true)
+    disconnectCB = clientObject.makePostMessageCB(disconnectCB);
+  clientObject.disconnectCB = disconnectCB;
 
   // Closes connection and resets client.
   clientObject.reset = function(callback) {
@@ -163,31 +179,6 @@ function SlideClient(serverURI, disconnectCB, usePostMessage) {
 };
 
 /**
- * Gets the current state of the SlideClient.
- *
- * @param {requestCallback} callback - Node-style callback for result.
- * @returns {Object} Contains authentication data and stream status.
- */
-SlideClient.prototype.getState = function(callback) {
-  let clientObject = this;
-  const state = {
-    username: clientObject.username,
-    authenticated: clientObject.authenticated,
-    hostingStream: clientObject.hostingStream,
-    joinedStream: clientObject.joinedStream
-  };
-
-  // Convert string identifier to WebKit postMessage function.
-  if (callback !== undefined && clientObject.usePostMessage === true)
-    callback = clientObject.makePostMessageCB(callback);
-
-  // Compatibility with Promises.
-  if (callback !== undefined)
-    callback(null, state);
-  else return state;
-};
-
-/**
  * Sets view callbacks on stream data.
  *
  * @param {Object} dataCallbacks - A map from properties to callbacks.
@@ -241,8 +232,8 @@ SlideClient.prototype.setStreamCallbacks = function(dataCallbacks, callback) {
       // Convert string identifier to
       // WebKit postMessage function.
       if (clientObject.usePostMessage === true)
-        dataCallbacks.streamData = clientObject.makePostMessageCB(dataCallbacks
-          .streamData);
+        dataCallbacks.streamData = clientObject.makePostMessageDataCB(
+          dataCallbacks.streamData);
 
       clientObject.streamDataCB = (data) => {
         // Unfortunately read permissions in Deepstream are not dynamic.
@@ -285,8 +276,8 @@ SlideClient.prototype.setStreamCallbacks = function(dataCallbacks, callback) {
           // Convert string identifier to
           // WebKit postMessage function.
           if (clientObject.usePostMessage === true)
-            dataCallbacks.locked = clientObject.makePostMessageCB(dataCallbacks
-              .locked);
+            dataCallbacks.locked = clientObject.makePostMessageDataCB(
+              dataCallbacks.locked);
 
           clientObject.lockedCB = (data) => {
             // TODO: More stuff goes here.
@@ -313,8 +304,8 @@ SlideClient.prototype.setStreamCallbacks = function(dataCallbacks, callback) {
           // Convert string identifier to
           // WebKit postMessage function.
           if (clientObject.usePostMessage === true)
-            dataCallbacks.queue = clientObject.makePostMessageCB(dataCallbacks
-              .queue);
+            dataCallbacks.queue = clientObject.makePostMessageDataCB(
+              dataCallbacks.queue);
 
           clientObject.queueCB = (data) => {
             // TODO: More stuff goes here.
@@ -343,7 +334,7 @@ SlideClient.prototype.setStreamCallbacks = function(dataCallbacks, callback) {
           // WebKit postMessage function.
           if (clientObject.usePostMessage === true)
             dataCallbacks.autoplay = clientObject
-              .makePostMessageCB(dataCallbacks.autoplay);
+              .makePostMessageDataCB(dataCallbacks.autoplay);
 
           clientObject.autoplayCB = (data) => {
             // TODO: More stuff goes here.
@@ -373,7 +364,7 @@ SlideClient.prototype.setStreamCallbacks = function(dataCallbacks, callback) {
         // WebKit postMessage function.
         if (clientObject.usePostMessage === true)
           dataCallbacks.suggestion = clientObject
-            .makePostMessageCB(dataCallbacks.suggestion);
+            .makePostMessageDataCB(dataCallbacks.suggestion);
 
         clientObject.suggestionCB = (data) => {
           // TODO: More stuff goes here.
@@ -434,8 +425,8 @@ SlideClient.prototype.setTrackCallbacks = function(addTrackCBS,
       const track = clientObject.client.record.getRecord(locator);
       // Convert string identifier to WebKit postMessage function.
       if (clientObject.usePostMessage === true)
-        addTrackCBS[locator] = clientObject
-          .makePostMessageCB(addTrackCBS[locator]);
+        addTrackCBS[locator] = clientObject // IOS track CB has locator param.
+          .makePostMessageTrackDataCB(addTrackCBS[locator], locator);
 
       clientObject.trackCBS[locator] = addTrackCBS[locator];
       track.whenReady((tRecord) =>
@@ -555,6 +546,7 @@ SlideClient.prototype.logout = function(callback) {
  * called login() first, or this function will fail.
  *
  * @param {Object} settings - Stream settings object (see below for props).
+ * @param {string} settings.display - Sets a display name for the current stream.
  * @param {string} settings.live - Toggles whether the stream is running.
  * @param {string} settings.privateMode - Sets stream visibility to private.
  * @param {string} settings.voting - Sets voting on or off for the stream.
@@ -591,6 +583,8 @@ SlideClient.prototype.stream = function(settings, dataCallbacks, callback) {
     const streamCall = {
       username: clientObject.username,
       stream: clientObject.username,
+      display: settings.display !== undefined
+        ? settings.display : clientObject.username,
       live: settings.live !== undefined
         ? settings.live : true,
       private: settings.privateMode !== undefined
@@ -661,7 +655,7 @@ SlideClient.prototype.join = function(stream, dataCallbacks, streamDeadCB,
 
   // Convert string identifier to WebKit postMessage function.
   if (streamDeadCB !== undefined && clientObject.usePostMessage === true)
-    streamDeadCB = clientObject.makePostMessageCB(streamDeadCB);
+    streamDeadCB = clientObject.makePostMessageDataCB(streamDeadCB);
 
   // Explicitly enforced to avoid bugs.
   if (clientObject.authenticated === false)
@@ -741,7 +735,8 @@ SlideClient.prototype.leave = function(fireDead, callback) {
           (error, data) => {
           if (error) callback(Errors.unknown, null);
           else {
-            if (fireDead) clientObject.streamDeadCB();
+            // Client will set fireDead if they have cleanup to do.
+            if (fireDead) clientObject.streamDeadCB(null);
             clientObject.joinedStream = null;
             clientObject.streamDeadCB = null;
             clientObject.enteredStream = false;
@@ -757,12 +752,11 @@ SlideClient.prototype.leave = function(fireDead, callback) {
  * Creates a track on the server and returns the record locator
  * for the given track.
  *
- * @param {string} URI - Spotify URI for the track.
- * @param {Object} trackData - Spotify track data for the track.
+ * @param {Object} trackData - Platform track data for the track.
  * @param {requestCallback} callback - Node-style callback for result.
  * @returns {string} A newly-created track locator.
  */
-SlideClient.prototype.createTrack = function(URI, trackData, callback) {
+SlideClient.prototype.createTrack = function(trackData, callback) {
   if (callback === undefined) callback = (error, data) => null;
   const clientObject = this;
 
@@ -781,10 +775,9 @@ SlideClient.prototype.createTrack = function(URI, trackData, callback) {
   // sure that permissions are fine?
   else {
     const trackCall = {
-      username: clientObject.username,
-      URI: URI, playData: trackData,
       stream: clientObject.hostingStream === true
-        ? clientObject.username : clientObject.joinedStream
+        ? clientObject.username : clientObject.joinedStream,
+      username: clientObject.username, trackData: trackData
     };
 
     // The RPC call will return the newly-created locator.
@@ -885,13 +878,12 @@ SlideClient.prototype.voteOnTrack = function(locator, up, list, callback) {
 /**
  * Plays a track on the stream.
  *
- * @param {string} URI - A valid Spotify track URI.
- * @param {Object} playData - Spotify track data.
+ * @param {Object} trackData - Platform track data.
  * @param {integer} offset - An offset in seconds from the track start.
  * @param {string} state - Set to either playing or paused.
  * @param {requestCallback} callback - Node-style callback for result.
  */
-SlideClient.prototype.playTrack = function(URI, playData, offset, state,
+SlideClient.prototype.playTrack = function(trackData, offset, state,
   callback) {
   if (callback === undefined) callback = (error, data) => null;
   const clientObject = this;
@@ -914,7 +906,7 @@ SlideClient.prototype.playTrack = function(URI, playData, offset, state,
       username: clientObject.username,
       stream: clientObject.hostingStream === true
         ? clientObject.username : clientObject.joinedStream,
-      state: state, seek: offset, URI: URI, playData: playData
+      state: state, seek: offset, trackData: trackData
     };
 
     // The RPC call will return null on success.
