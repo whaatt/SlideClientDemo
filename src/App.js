@@ -221,7 +221,7 @@ class App extends Component {
       // TODO: Validate rogue clients...
       let trackData = thisObj.state.trackData;
       trackData[locator] = {
-        name: track.trackData.name,
+        data: track.trackData,
         score: track.score,
         ups: track.up,
         downs: track.down
@@ -463,14 +463,14 @@ class App extends Component {
                    || thisObj.state.source === thisObj.state.username)) {
               offset += 1;
               return thisObj.StreamClient.playTrackAsync(
-                { name: trackData.name }, offset, 'playing')
+                trackData.data, offset, 'playing')
                 .catch((error) => true);
             } else {
               clearInterval(thisObj.playTick);
               thisObj.playTick = null;
               if (thisObj.state.source === thisObj.state.username)
                 return thisObj.StreamClient.playTrackAsync(
-                  { name: trackData.name }, offset, 'paused')
+                  trackData.data, offset, 'paused')
                   .catch((error) => true);
               else return;
             }
@@ -556,7 +556,7 @@ class App extends Component {
     // Might not have subscribed to
     // the appropriate callback yet.
     if (trackData !== undefined) {
-      trackName = trackData.name;
+      trackName = trackData.data.name;
       trackScore = trackData.score;
       index = idx.toString();
       inState = trackData.ups.indexOf(this.state.username) !== -1 ? 'up'
