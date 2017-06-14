@@ -28,6 +28,7 @@ const LOCKED_PREFIX = 'locked/';
 const QUEUE_PREFIX = 'queue/';
 const AUTOPLAY_PREFIX = 'autoplay/';
 const SUGGESTION_PREFIX = 'suggestion/';
+const REACTION_PREFIX = 'reaction/';
 
 // RPC agent endpoints.
 const EDIT_STREAM_SETTINGS = 'edit-stream-settings';
@@ -54,7 +55,8 @@ const Errors = {
   dead: new Error('You are not part of an active stream.'),
   login: new Error('Could not either establish connection or login.'),
   server: new Error('A remote error occurred.'),
-  unknown: new Error('An unknown server error occurred.')
+  unknown: new Error('An unknown server error occurred.'),
+  validation: new Error('A validation error occurred.')
 };
 
 /**
@@ -136,6 +138,7 @@ function SlideClient(serverURI, disconnectCB, usePostMessage) {
         clientObject.queueCB = null;
         clientObject.autoplayCB = null;
         clientObject.suggestionCB = null;
+        clientObject.reactionCB = null;
         clientObject.trackCBS = {};
 
         // Call disconnect handler.
@@ -175,6 +178,7 @@ function SlideClient(serverURI, disconnectCB, usePostMessage) {
   clientObject.queueCB = null;
   clientObject.autoplayCB = null;
   clientObject.suggestionCB = null;
+  clientObject.reactionCB = null;
   clientObject.trackCBS = {};
 
   // Internal function to set stream callbacks. Clients use stream and join.
@@ -203,6 +207,7 @@ function SlideClient(serverURI, disconnectCB, usePostMessage) {
     const queueLocator = QUEUE_PREFIX + stream;
     const autoplayLocator = AUTOPLAY_PREFIX + stream;
     const suggestionLocator = SUGGESTION_PREFIX + stream;
+    const reactionLocator = REACTION_PREFIX + stream;
 
     // The stream record is necessary to fetch the other records.
     const streamRecord = clientObject.client.record.getRecord(streamLocator);
@@ -368,6 +373,31 @@ function SlideClient(serverURI, disconnectCB, usePostMessage) {
           gRecord.subscribe(clientObject.suggestionCB, true);
         }
       });
+
+      // Get rid of reaction callback.
+      if (clientObject.reactionCB !== null) {
+        clientObject.client.event.unsubscribe(reactionLocator,
+          clientObject.reactionCB);
+        clientObject.reactionCB = null;
+      }
+
+      // Install the new one if we can.
+      if (dataCallbacks.reaction) {
+        // Convert string identifier to
+        // WebKit postMessage function.
+        if (clientObject.usePostMessage == true)
+          dataCallbacks.reaction = clientObject
+            .makePostMessageDataCB(dataCallbacks.reaction);
+
+        clientObject.reactionCB = (data) => {
+          // TODO: More stuff goes here.
+          dataCallbacks.reaction(data);
+        };
+
+        // Re-add the callback and wait for event.
+        clientObject.client.event.subscribe(reactionLocator,
+          clientObject.reactionCB);
+      }
 
       // TODO: Failures?
       callback(null, null);
@@ -552,6 +582,7 @@ SlideClient.prototype.logout = function(callback) {
  * @param {Function} dataCallbacks.queue - A callback for queue list data.
  * @param {Function} dataCallbacks.autoplay - A callback for autoplay list data.
  * @param {Function} dataCallbacks.suggestion - A callback for suggestion list data.
+ * @param {Function} dataCallbacks.reaction - A callback for handling reaction data.
  * @param {requestCallback} callback - Node-style callback for result.
  */
 SlideClient.prototype.stream = function(settings, dataCallbacks, callback) {
@@ -642,6 +673,7 @@ SlideClient.prototype.stream = function(settings, dataCallbacks, callback) {
  * @param {Function} dataCallbacks.queue - A callback for queue list data.
  * @param {Function} dataCallbacks.autoplay - A callback for autoplay list data.
  * @param {Function} dataCallbacks.suggestion - A callback for suggestion list data.
+ * @param {Function} dataCallbacks.reaction - A callback for handling reaction data.
  * @param {Function} streamDeadCB - Called when the stream goes dead somehow.
  * @param {requestCallback} callback - Node-style callback for result.
  */
@@ -924,6 +956,49 @@ SlideClient.prototype.playTrack = function(trackData, offset, state,
       if (error) callback(Errors.server, null);
       else callback(null, null);
     });
+  }
+};
+
+/**
+ * Broadcasts a reaction emoji to the current stream.
+ *
+ * @param {String} emoji - One or two Unicode characters.
+ * @param {requestCallback} callback - Node-style callback for result.
+ */
+SlideClient.prototype.react = function(emoji, callback) {
+  if (callback === undefined) callback = (error, data) => null;
+  const clientObject = this;
+
+  // Convert string identifier to WebKit postMessage function.
+  if (callback !== undefined && clientObject.usePostMessage === true)
+    callback = clientObject.makePostMessageCB(callback);
+
+  // Explicitly enforced to avoid bugs.
+  if (clientObject.authenticated === false)
+    callback(Errors.auth, null);
+  // Cannot play if not part of a stream.
+  else if (clientObject.hostingStream === false &&
+    clientObject.joinedStream === null)
+    callback(Errors.dead, null);
+  // Since events have no success callback, we
+  // manually validate the length on client-side.
+  else if (emoji.length < 1 || emoji.length > 2)
+    callback(Errors.validation, null);
+  else {
+    const reactionCall = {
+      username: clientObject.username,
+      emoji: emoji
+    };
+
+    // Infer stream name.
+    const streamName = clientObject.hostingStream === true
+      ? clientObject.username : clientObject.joinedStream;
+
+    // TODO: Manually intercept any potential messages
+    // that are MESSAGE_DENIED. Otherwise, no errors here.
+    const eventLocator = REACTION_PREFIX + streamName;
+    clientObject.client.event.emit(eventLocator, reactionCall);
+    callback(null, null);
   }
 };
 

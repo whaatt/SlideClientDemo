@@ -10,6 +10,7 @@
 
 import React, { Component } from 'react';
 import * as RB from 'react-bootstrap';
+import $ from 'jquery';
 import './App.css';
 
 // Socket server client API.
@@ -40,6 +41,7 @@ class App extends Component {
       // Stream info.
       members: [], // In view: None.
       timestamp: (new Date).getTime(),
+      emojiSource: 'None',
       privateMode: false,
       voting: false,
       autopilot: false,
@@ -49,6 +51,7 @@ class App extends Component {
       source: 'None',
       seek: 0, // Epoch.
       playState: 'Paused',
+      debounce: new Date().getTime(),
       // List states.
       lockedActive: false,
       queueActive: false,
@@ -201,6 +204,22 @@ class App extends Component {
     };
   };
 
+  // Capture reaction.
+  captureReaction(data) {
+    this.setState({
+      // Serialize this.
+      'emojiSource': data.username
+    }, (unused) => $('#emoji').hide()
+      .queue('fx', (next) => {
+        $('#emoji').text(data.emoji);
+        next();
+      }).show().delay(100).hide()
+      .queue('fx', (next) => {
+        $('#emoji').text('o');
+        next();
+      }).show());
+  };
+
   // Set list data.
   setListData(list) {
     let thisObj = this;
@@ -246,7 +265,8 @@ class App extends Component {
       locked: thisObj.setListData('locked').bind(thisObj),
       queue: thisObj.setListData('queue').bind(thisObj),
       suggestion: thisObj.setListData('suggestion').bind(thisObj),
-      autoplay: thisObj.setListData('autoplay').bind(thisObj)
+      autoplay: thisObj.setListData('autoplay').bind(thisObj),
+      reaction: thisObj.captureReaction.bind(thisObj)
     })
       .then((data) => {
         thisObj.setState({
@@ -340,7 +360,8 @@ class App extends Component {
           locked: thisObj.setListData('locked').bind(thisObj),
           queue: thisObj.setListData('queue').bind(thisObj),
           suggestion: thisObj.setListData('suggestion').bind(thisObj),
-          autoplay: thisObj.setListData('autoplay').bind(thisObj)
+          autoplay: thisObj.setListData('autoplay').bind(thisObj),
+          reaction: thisObj.captureReaction.bind(thisObj)
         }, thisObj.processStreamDeath(false).bind(thisObj))
           .then((data) => thisObj.updateJoinedStream())
           .catch((error) =>
@@ -715,6 +736,7 @@ class App extends Component {
     let playState = this.state.playState;
     let members = this.state.members;
     let timestamp = new Date(this.state.timestamp);
+    let emojiSource = this.state.emojiSource;
 
     playState = playState[0].toUpperCase() + playState.slice(1);
     timestamp = timestamp.toUTCString().substr(4)
@@ -735,6 +757,8 @@ class App extends Component {
         [<span id="source">{ source }</span>]
         <h3>Who's Here:</h3>
         <span id="members">{ memStr }</span>.
+        <h3>Reaction:</h3>
+        <span id="emojiSource">{ emojiSource }</span>.
         <h3>Timestamp:</h3>
         <span id="timestamp">{ timestamp }</span>.
       </RB.Col>
@@ -777,7 +801,7 @@ class App extends Component {
       <div className="App">
         <RB.Grid fluid>
           <RB.Row id="header">
-            <RB.Col md={12}><h2>Slide Client API Demo</h2></RB.Col>
+            <RB.Col md={12}><h2>Slide Client API Dem<span id="emoji">o</span></h2></RB.Col>
           </RB.Row>
 
           <RB.Row>
@@ -821,6 +845,26 @@ class App extends Component {
         </RB.Grid>
       </div>
     );
+  };
+
+  // Init random listeners.
+  componentDidMount() {
+    let thisObj = this;
+    let emojis = ('😀 😃 😄 😁 😆 😅 😂 🤣 ☺️ 😊 😇 🙂 🙃 😉 😌 😍 😘 '
+      + ' 😗 😙 😚 😋 😜 😝 😛 🤑 🤗 🤓 😎 🤡 🤠 😏 😒 😞 😔 😟 😕 🙁 ☹️ '
+      + '😣 😖 😫 😩 😤 😠 😡 😶 😐 😑 😯 😦 😧 😮 😲 😵 😳 😱 😨 😰 😢 😥 '
+      + '🤤 😭 😓 😪 😴 🙄 🤔 🤥 😬 🤐 🤢 🤧 😷 🤒 🤕 😈 👿 👹 👺 💩').split(' ');
+    document.body.addEventListener('keydown', (event) => {
+      let joined = thisObj.state.joined;
+      let hosting = thisObj.state.hosting;
+      let debounce = thisObj.state.debounce;
+      let emoji = emojis[Math.floor(Math.random() * emojis.length)];
+      let now = (new Date()).getTime(); // Used to reject repeat events.
+      if (event.keyCode == 192 && (joined || hosting) && now - debounce > 100)
+        return thisObj.setState({ debounce: now },
+          (done) => thisObj.StreamClient.reactAsync(emoji)
+            .then((data) => true).catch((error) => false));
+    });
   };
 
   // Main call.
